@@ -1,75 +1,97 @@
 import json
 import os
 
-DB_FILE = "inventory_data.json"
+class Item:
+    def __init__(self, item_id, name, price, qty):
+        self.item_id = str(item_id)
+        self.name = name
+        self.price = float(price)
+        self.qty = int(qty)
 
-def load_inv():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    # Default data if file doesn't exist
-    return {
-        "101": {"name": "Router", "price": 500, "qty": 10},
-        "102": {"name": "Switch", "price": 300, "qty": 5}
-    }
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "price": self.price,
+            "qty": self.qty
+        }
 
-def save_inv(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+class InventoryManager:
+    def __init__(self, file_path="inventory.json"):
+        self.file_path = file_path
+        self.inventory = self.load_data()
 
-def find_item(inv, item_id):
-    return inv.get(item_id)
+    def load_data(self):
+        if os.path.exists(self.file_path):
+            with open(self.file_path, "r") as f:
+                raw_data = json.load(f)
+                # Convert dictionary back into Item objects
+                return {sid: Item(sid, **info) for sid, info in raw_data.items()}
+        return {}
 
-def sell_item(inv, item_id, amount):
-    item = find_item(inv, item_id)
-    if not item:
-        print("Error: Item ID not found.")
+    def save_data(self):
+        # Convert objects back into dictionaries for JSON
+        serializable_data = {sid: item.to_dict() for sid, item in self.inventory.items()}
+        with open(self.file_path, "w") as f:
+            json.dump(serializable_data, f, indent=4)
+
+    def add_item(self, item_id, name, price, qty):
+        self.inventory[str(item_id)] = Item(item_id, name, price, qty)
+        self.save_data()
+
+    def update_stock(self, item_id, change):
+        item = self.inventory.get(str(item_id))
+        if item:
+            if item.qty + change >= 0:
+                item.qty += change
+                self.save_data()
+                return True
         return False
-    
-    if item['qty'] < amount:
-        print(f"Error: Not enough stock. Only {item['qty']} left.")
-        return False
-    
-    item['qty'] -= amount
-    print(f"Sold {amount} {item['name']}(s).")
-    return True
+
+    def get_total_value(self):
+        return sum(item.price * item.qty for item in self.inventory.values())
+
+    def low_stock_report(self, threshold=5):
+        return [item.name for item in self.inventory.values() if item.qty <= threshold]
 
 def main():
-    inventory = load_inv()
+    manager = InventoryManager()
 
     while True:
-        print("\n--- Inventory Version 1 ---")
-        print("1. View All | 2. Search | 3. Sell | 4. Add/Update | 5. Exit")
-        cmd = input("> ")
+        print(f"\n--- Final Inventory System (Total Value: ${manager.get_total_value()}) ---")
+        print("1. List All | 2. Update Stock | 3. New Item | 4. Alerts | 5. Exit")
+        choice = input("Select: ")
 
-        if cmd == "1":
-            for id, info in inventory.items():
-                print(f"ID: {id} | Name: {info['name']} | Price: ${info['price']} | Qty: {info['qty']}")
+        if choice == "1":
+            for sid, item in manager.inventory.items():
+                print(f"[{sid}] {item.name} - ${item.price} (Qty: {item.qty})")
         
-        elif cmd == "2":
-            search_id = input("Enter ID: ")
-            item = find_item(inventory, search_id)
-            if item:
-                print(f"Found: {item}")
-            else:
-                print("Not found.")
+        elif choice == "2":
+            sid = input("Item ID: ")
+            try:
+                amt = int(input("Change (e.g., -5 for sale, 10 for restock): "))
+                if manager.update_stock(sid, amt):
+                    print("Updated successfully.")
+                else:
+                    print("Error: Invalid ID or insufficient stock.")
+            except ValueError:
+                print("Enter a valid number.")
 
-        elif cmd == "3":
-            sell_id = input("Item ID to sell: ")
-            qty_to_sell = int(input("Quantity: "))
-            if sell_item(inventory, sell_id, qty_to_sell):
-                save_inv(inventory)
-
-        elif cmd == "4":
-            new_id = input("Item ID: ")
+        elif choice == "3":
+            sid = input("ID: ")
             name = input("Name: ")
-            price = float(input("Price: "))
-            qty = int(input("Initial Qty: "))
-            inventory[new_id] = {"name": name, "price": price, "qty": qty}
-            save_inv(inventory)
-            print("Inventory updated.")
+            price = input("Price: ")
+            qty = input("Qty: ")
+            manager.add_item(sid, name, price, qty)
+            print("Item added.")
 
-        elif cmd == "5":
+        elif choice == "4":
+            low_items = manager.low_stock_report()
+            if low_items:
+                print("LOW STOCK ALERT:", ", ".join(low_items))
+            else:
+                print("All stock levels healthy.")
+
+        elif choice == "5":
             break
 
 if __name__ == "__main__":
