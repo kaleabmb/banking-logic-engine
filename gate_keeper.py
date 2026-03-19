@@ -1,31 +1,69 @@
+import hashlib
+import json
+import logging
 import os
-from datetime import datetime
+import re
 
-# Hardcoded list of allowed users
-authorized_ids = ["admin_01", "system_user", "engineer_v4"]
+# Setup professional logging
+logging.basicConfig(
+    filename="auth.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-def log_breach(attempted_id):
-    # Open the text file in append mode
-    with open("security_log.txt", "a") as log_file:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_file.write(f"[{timestamp}] UNAUTHORIZED ATTEMPT: ID '{attempted_id}'\n")
+DB_FILE = "users.json"
 
-while True:
-    print("\n--- Standard Security Checkpoint ---")
-    user_id = input("Enter User ID (or type 'exit' to close): ")
-    
-    if user_id.lower() == 'exit':
-        print("Shutting down gate checkpoint.")
-        break
+def hash_pw(password):
+    # Convert string to bytes, hash it, and return the hex string
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def init_db():
+    # If no db exists, create one with a default admin
+    # The password is 'Admin123!' but we only store the hash
+    if not os.path.exists(DB_FILE):
+        default_data = {
+            "admin": hash_pw("Admin123!")
+        }
+        with open(DB_FILE, "w") as f:
+            json.dump(default_data, f)
+
+def load_db():
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
+
+def is_complex(pw):
+    # Must be 8+ chars, have a letter, and have a number
+    if len(pw) < 8: return False
+    if not re.search(r"[A-Za-z]", pw): return False
+    if not re.search(r"[0-9]", pw): return False
+    return True
+
+def main():
+    init_db()
+    db = load_db()
+
+    while True:
+        print("\n--- System Login ---")
+        uid = input("User (or 'exit'): ").strip()
         
-    access_key = input("Enter Access Key: ")
-    
-    # Validation Logic
-    is_authorized = user_id in authorized_ids
-    is_valid_key = len(access_key) == 8
-    
-    if is_authorized and is_valid_key:
-        print("ACCESS GRANTED. Welcome, " + user_id)
-    else:
-        print("ACCESS DENIED. This incident will be reported.")
-        log_breach(user_id)
+        if uid.lower() == 'exit':
+            break
+            
+        pwd = input("Pass: ").strip()
+
+        # Check if user exists first to prevent errors
+        if uid not in db:
+            logging.warning(f"Failed login: Unknown user '{uid}'")
+            print("Access Denied.")
+            continue
+
+        # Check password against hash
+        if db[uid] == hash_pw(pwd):
+            logging.info(f"Successful login for '{uid}'")
+            print(f"Welcome, {uid}.")
+        else:
+            logging.warning(f"Failed login: Bad password for '{uid}'")
+            print("Access Denied.")
+
+if __name__ == "__main__":
+    main()
