@@ -1,43 +1,51 @@
-import os
+import shutil
+from pathlib import Path
 
-# First try: Basic OS module file counter
-def count_files():
-    # Android default download path
-    target_dir = "/sdcard/Download"
+def organize_files():
+    # Define target using Path object
+    download_dir = Path("/sdcard/Download")
     
-    # Check if directory exists to prevent crashes
-    if not os.path.exists(target_dir):
-        print(f"Error: Directory {target_dir} not found.")
+    if not download_dir.exists():
+        print("Error: Target directory not found.")
         return
 
-    print(f"Scanning directory: {target_dir}...\n")
+    # Map extensions to destination folder names
+    categories = {
+        ".pdf": "PDF_Documents",
+        ".py": "Python_Scripts",
+        ".txt": "Text_Files"
+    }
 
-    pdf_count = 0
-    py_count = 0
-    txt_count = 0
-    other_count = 0
+    print("Starting organization...\n")
+    moved_count = 0
 
-    # Get all files and folders in the target directory
-    items = os.listdir(target_dir)
+    # iterdir() goes through everything in the folder
+    for item in download_dir.iterdir():
+        # We only want to move actual files, not folders
+        if item.is_file():
+            ext = item.suffix.lower()
+            
+            # If the extension is in our dictionary, we organize it
+            if ext in categories:
+                dest_folder_name = categories[ext]
+                dest_path = download_dir / dest_folder_name
+                
+                # Create the category folder if it doesn't exist yet
+                dest_path.mkdir(exist_ok=True)
+                
+                # The exact path where the file will live
+                target_file = dest_path / item.name
+                
+                # Check if file already exists there to prevent data loss
+                if not target_file.exists():
+                    # Move the file
+                    shutil.move(str(item), str(target_file))
+                    print(f"Moved: {item.name} -> {dest_folder_name}/")
+                    moved_count += 1
+                else:
+                    print(f"Skipped: {item.name} (Already exists in {dest_folder_name}/)")
 
-    for item in items:
-        # Ignore folders, only process files
-        if os.path.isfile(os.path.join(target_dir, item)):
-            item_lower = item.lower()
-            if item_lower.endswith(".pdf"):
-                pdf_count += 1
-            elif item_lower.endswith(".py"):
-                py_count += 1
-            elif item_lower.endswith(".txt"):
-                txt_count += 1
-            else:
-                other_count += 1
-
-    print("--- File Tally ---")
-    print(f"PDF files: {pdf_count}")
-    print(f"Python files: {py_count}")
-    print(f"Text files: {txt_count}")
-    print(f"Other files: {other_count}")
+    print(f"\nFinal Version Complete. Successfully moved {moved_count} files.")
 
 if __name__ == "__main__":
-    count_files()
+    organize_files()
