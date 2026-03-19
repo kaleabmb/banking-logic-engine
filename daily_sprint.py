@@ -1,65 +1,100 @@
+import json
+import os
+
 class Task:
-    def __init__(self, description):
+    def __init__(self, description, is_completed=False):
         self.description = description
-        self.is_completed = False
+        self.is_completed = is_completed
 
     def mark_done(self):
         self.is_completed = True
 
+    def to_dict(self):
+        # Convert object to a dictionary for JSON saving
+        return {
+            "description": self.description,
+            "is_completed": self.is_completed
+        }
+
     def __str__(self):
-        # Displays [v] if done, [ ] if not done
-        status = "v" if self.is_completed else " "
+        status = "X" if self.is_completed else " "
         return f"[{status}] {self.description}"
 
 
 class TaskManager:
-    def __init__(self):
-        self.tasks =[]
+    def __init__(self, filename="sprint_data.json"):
+        self.filename = filename
+        self.tasks = self.load_tasks()
+
+    def load_tasks(self):
+        if not os.path.exists(self.filename):
+            return []
+        try:
+            with open(self.filename, "r") as f:
+                data_list = json.load(f)
+                # Rehydrate: Turn dictionaries back into Task objects
+                return [Task(d["description"], d["is_completed"]) for d in data_list]
+        except (json.JSONDecodeError, KeyError):
+            return []
+
+    def save_tasks(self):
+        with open(self.filename, "w") as f:
+            # Serialize: Turn Task objects into dictionaries
+            json.dump([t.to_dict() for t in self.tasks], f)
 
     def add_task(self, description):
-        new_task = Task(description)
-        self.tasks.append(new_task)
-        print("Task added.")
-
-    def display_all(self):
-        print("\n--- Daily Sprint ---")
-        if not self.tasks:
-            print("No tasks currently scheduled.")
-            return
-            
-        for index, task in enumerate(self.tasks):
-            print(f"{index}. {task}")
+        self.tasks.append(Task(description))
+        self.save_tasks()
 
     def complete_task(self, index):
         if 0 <= index < len(self.tasks):
             self.tasks[index].mark_done()
-            print("Task marked as complete.")
-        else:
-            print("Error: Invalid task number.")
+            self.save_tasks()
+            return True
+        return False
+
+    def delete_task(self, index):
+        if 0 <= index < len(self.tasks):
+            self.tasks.pop(index)
+            self.save_tasks()
+            return True
+        return False
+
+    def display(self):
+        print("\n--- Final Version: Sprint Manager ---")
+        if not self.tasks:
+            print("No tasks found.")
+        for i, task in enumerate(self.tasks):
+            print(f"{i}. {task}")
 
 
 def main():
-    sprint = TaskManager()
+    manager = TaskManager()
 
     while True:
-        sprint.display_all()
-        print("\nOptions: 1. Add Task  2. Complete Task  3. Exit")
-        choice = input("Choose an option: ")
+        manager.display()
+        print("\n1. Add Task | 2. Done | 3. Delete | 4. Exit")
+        cmd = input("> ")
 
-        if choice == "1":
-            desc = input("Task description: ")
-            sprint.add_task(desc)
-        elif choice == "2":
+        if cmd == "1":
+            desc = input("Describe task: ")
+            manager.add_task(desc)
+        elif cmd == "2":
             try:
-                task_num = int(input("Enter task number to mark done: "))
-                sprint.complete_task(task_num)
+                idx = int(input("Task index: "))
+                if not manager.complete_task(idx):
+                    print("Invalid index.")
             except ValueError:
-                print("Error: Please enter a valid number.")
-        elif choice == "3":
-            print("Exiting sprint manager...")
+                print("Enter a number.")
+        elif cmd == "3":
+            try:
+                idx = int(input("Task index: "))
+                if not manager.delete_task(idx):
+                    print("Invalid index.")
+            except ValueError:
+                print("Enter a number.")
+        elif cmd == "4":
             break
-        else:
-            print("Invalid choice.")
 
 if __name__ == "__main__":
     main()
