@@ -1,41 +1,44 @@
 import sqlite3
 
-def run_db_test():
-    # Connect to a local file (creates it if missing)
-    conn = sqlite3.connect('campus.db')
-    cursor = conn.cursor()
+class StudentDB:
+    def __init__(self, db_name="campus.db"):
+        self.db_name = db_name
+        self.init_db()
 
-    # 1. Create the table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Students (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            gpa REAL
-        )
-    ''')
+    def init_db(self):
+        with sqlite3.connect(self.db_name) as conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS Students (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    gpa REAL NOT NULL
+                )
+            ''')
+            conn.commit()
 
-    # 2. Clear old data for a clean test
-    cursor.execute('DELETE FROM Students')
+    def add_student(self, name, gpa):
+        # Using context manager for automatic closing
+        with sqlite3.connect(self.db_name) as conn:
+            conn.execute("INSERT INTO Students (name, gpa) VALUES (?, ?)", (name, gpa))
+            conn.commit()
 
-    # 3. Insert 3 students using placeholders (?) for security
-    student_data = [
-        ('Abebe', 3.8),
-        ('Sara', 2.9),
-        ('John', 3.5)
-    ]
-    cursor.executemany('INSERT INTO Students (name, gpa) VALUES (?, ?)', student_data)
+    def get_honors_list(self, min_gpa=3.0):
+        with sqlite3.connect(self.db_name) as conn:
+            cursor = conn.execute("SELECT name, gpa FROM Students WHERE gpa > ?", (min_gpa,))
+            return cursor.fetchall()
+
+def main():
+    db = StudentDB()
     
-    conn.commit()
+    # Simulate adding records
+    db.add_student("Keleab", 3.9)
+    db.add_student("Hagos", 2.8)
+    db.add_student("Selam", 3.5)
 
-    # 4. Select students with GPA > 3.0
-    print("--- Students with GPA > 3.0 ---")
-    cursor.execute('SELECT name, gpa FROM Students WHERE gpa > 3.0')
-    
-    for row in cursor.fetchall():
-        print(f"Name: {row[0]} | GPA: {row[1]}")
-
-    conn.close()
+    print("\n--- Professional Student DB ---")
+    honors = db.get_honors_list(3.0)
+    for name, gpa in honors:
+        print(f"Honor Student: {name:10} | GPA: {gpa}")
 
 if __name__ == "__main__":
-    run_db_test()
-    
+    main()
