@@ -9,7 +9,7 @@ These scripts demonstrate a fundamental understanding of state management, data 
 2. **gate_keeper.py**: A security access simulator demonstrating string manipulation and activity logging.
 3. **file_manager.py**: An OS-level automation script for directory scanning and file categorization.
 4. **daily_sprint.py**: A task management tool built using Python Classes and OOP principles.
-5. **inventory.py**: A CRUD (Create, Read, Update, Delete) simulator using nested dictionaries.
+
 
 **Tech Stack:** Python 3 | Termux (Linux CLI) | Git
 **Developer:** Kaleab Milion (Computer Engineering, AASTU)
